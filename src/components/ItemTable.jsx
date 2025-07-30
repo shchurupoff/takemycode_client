@@ -9,7 +9,6 @@ import {
   Paper,
   Checkbox,
   TextField,
-  TableSortLabel,
   Box,
   CircularProgress,
 } from "@mui/material";
@@ -33,7 +32,9 @@ const ItemTable = () => {
 
   const { data: itemsData, isFetching } = useGetItemsQuery(
     { search, offset },
-    { skip: !!search && offset > 0 }
+    {
+      skip: (!!search && offset > 0) || (!isLoading && !search),
+    }
   );
 
   useEffect(() => {
@@ -74,7 +75,7 @@ const ItemTable = () => {
 
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      const newSelected = localItems.map((item) => item);
+      const newSelected = localItems.map((item) => item.value);
       setSelected(newSelected);
       updateState({ selectedItems: newSelected });
       return;
@@ -83,31 +84,62 @@ const ItemTable = () => {
     updateState({ selectedItems: [] });
   };
 
-  const handleClick = (event, item) => {
-    const selectedIndex = selected.indexOf(item);
+  const handleClick = (event, itemValue) => {
+    const selectedIndex = selected.indexOf(itemValue);
     let newSelected = [];
 
     if (selectedIndex === -1) {
-      newSelected = [...selected, item];
+      newSelected = [...selected, itemValue];
     } else {
-      newSelected = selected.filter((selectedItem) => selectedItem !== item);
+      newSelected = selected.filter((value) => value !== itemValue);
     }
 
     setSelected(newSelected);
     updateState({ selectedItems: newSelected });
   };
 
-  const isSelected = (item) => selected.indexOf(item) !== -1;
+  const isSelected = (itemValue) => selected.indexOf(itemValue) !== -1;
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
+    console.log(result, localItems);
 
     const items = Array.from(localItems);
     const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
 
-    setLocalItems(items);
-    updateState({ sortedItems: items });
+    items.splice(result.destination.index, 0, reorderedItem);
+    const start = result.source.index;
+    const end = result.destination.index;
+
+    const newOrder = (item, index, arr) => {
+      if (end - start > 0) {
+        if (index < end && index >= start) {
+          return item.order - 1;
+        }
+        if (index === end) {
+          return localItems[start].order;
+        } else {
+          return item.order;
+        }
+      }
+      if (end - start < 0) {
+        if (index > end && index <= start) {
+          return item.order + 1;
+        }
+        if (index === end) {
+          return localItems[start].order;
+        } else {
+          return item.order;
+        }
+      }
+    };
+
+    const updatedItems = items.map((item, index, arr) => ({
+      ...item,
+      order: newOrder(item, index, arr),
+    }));
+    setLocalItems(updatedItems);
+    updateState({ sortedItems: updatedItems });
   };
 
   const handleSearchChange = (e) => {
@@ -144,9 +176,8 @@ const ItemTable = () => {
                     onChange={handleSelectAllClick}
                   />
                 </TableCell>
-                <TableCell>
-                  <TableSortLabel>Выбрать все</TableSortLabel>
-                </TableCell>
+                <TableCell>Value</TableCell>
+                <TableCell>Order</TableCell>
               </TableRow>
             </TableHead>
 
@@ -155,8 +186,8 @@ const ItemTable = () => {
                 <TableBody ref={provided.innerRef} {...provided.droppableProps}>
                   {localItems.map((item, index) => (
                     <Draggable
-                      key={Math.random()}
-                      draggableId={item.toString()}
+                      key={item.value}
+                      draggableId={item.value.toString()}
                       index={index}
                     >
                       {(provided) => (
@@ -166,16 +197,19 @@ const ItemTable = () => {
                           {...provided.dragHandleProps}
                           hover
                           role="checkbox"
-                          aria-checked={isSelected(item)}
-                          selected={isSelected(item)}
+                          aria-checked={isSelected(item.value)}
+                          selected={isSelected(item.value)}
                         >
                           <TableCell padding="checkbox">
                             <Checkbox
-                              checked={isSelected(item)}
-                              onClick={(event) => handleClick(event, item)}
+                              checked={isSelected(item.value)}
+                              onClick={(event) =>
+                                handleClick(event, item.value)
+                              }
                             />
                           </TableCell>
-                          <TableCell>{item}</TableCell>
+                          <TableCell>{item.value}</TableCell>
+                          <TableCell>{item.order}</TableCell>
                         </TableRow>
                       )}
                     </Draggable>
