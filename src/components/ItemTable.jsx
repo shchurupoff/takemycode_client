@@ -117,7 +117,7 @@ const ItemTable = () => {
           return item.order - 1;
         }
         if (index === end) {
-          return localItems[start].order;
+          return localItems[end].order;
         } else {
           return item.order;
         }
@@ -127,7 +127,7 @@ const ItemTable = () => {
           return item.order + 1;
         }
         if (index === end) {
-          return localItems[start].order;
+          return localItems[end].order;
         } else {
           return item.order;
         }
