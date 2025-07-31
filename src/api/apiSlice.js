@@ -9,18 +9,21 @@ export const apiSlice = createApi({
   tagTypes: ["Items", "State"],
   endpoints: (builder) => ({
     getItems: builder.query({
-      query: ({ min, max, offset }) => ({
+      query: ({ search, offset }) => ({
         url: "/items",
-        params: { min, max, offset },
+        params: { search, offset },
       }),
+      keepUnusedDataFor: 1,
       providesTags: ["Items"],
     }),
     getState: builder.query({
-      query: ({ min, max, offset }) => ({
+      query: ({ search, offset }) => ({
         url: "/state",
-        params: { min, max, offset },
+        params: { search, offset },
     }),
       providesTags: ["State"],
+      keepUnusedDataFor: 1,
+
     }),
     updateState: builder.mutation({
       query: (state) => ({

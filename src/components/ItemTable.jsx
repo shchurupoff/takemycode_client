@@ -20,8 +20,7 @@ import {
 } from '../api/apiSlice';
 
 const ItemTable = () => {
-    const [min, setMin] = useState(null);
-    const [max, setMax] = useState(null);
+    const [search, setSearch] = useState(null);
     const [offset, setOffset] = useState(0);
     const [localItems, setLocalItems] = useState([]);
     const [selected, setSelected] = useState([]);
@@ -30,7 +29,7 @@ const ItemTable = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     const { data: initialState } = useGetStateQuery(
-        { min, max, offset },
+        { search, offset },
         {
             skip: localItems.length !== 0 || isNeedMore,
         }
@@ -38,7 +37,7 @@ const ItemTable = () => {
     const [updateState] = useUpdateStateMutation();
 
     const { data: itemsData, isFetching } = useGetItemsQuery(
-        { min, max, offset },
+        { search, offset },
         {
             skip: !isNeedMore,
         }
@@ -48,6 +47,7 @@ const ItemTable = () => {
         if (initialState) {
             setLocalItems(initialState.sortedItems);
             setSelected(initialState.selectedItems);
+            setSearch(initialState.search);
         }
     }, [initialState]);
 
@@ -102,53 +102,45 @@ const ItemTable = () => {
         if (!result.destination) return;
 
         const items = Array.from(localItems);
-        const [reorderedItem] = items.splice(result.source.index, 1);
 
-        items.splice(result.destination.index, 0, reorderedItem);
         const start = result.source.index;
         const end = result.destination.index;
 
-        const newOrder = (item, index, arr) => {
-            if (end - start > 0) {
-                if (index < end && index >= start) {
-                    return item.order - 1;
-                }
-                if (index === end) {
-                    return localItems[end].order;
-                } else {
-                    return item.order;
-                }
-            }
-            if (end - start < 0) {
-                if (index > end && index <= start) {
-                    return item.order + 1;
-                }
-                if (index === end) {
-                    return localItems[end].order;
-                } else {
-                    return item.order;
-                }
-            }
-        };
-
-        const updatedItems = items.map((item, index, arr) => ({
+        const updatedItemsOrder = items.map((item, index) => ({
             ...item,
-            order: newOrder(item, index, arr),
+            order:
+                index === start
+                    ? localItems[end].order
+                    : index === end
+                    ? localItems[start].order
+                    : item.order,
         }));
+
+        let updatedItems = [];
+        if (end - start > 0) {
+            updatedItems = [
+                ...updatedItemsOrder.slice(0, start),
+                updatedItemsOrder[end],
+                ...updatedItemsOrder.slice([start + 1], end),
+                updatedItemsOrder[start],
+                ...updatedItemsOrder.slice(end + 1),
+            ];
+        } else {
+            updatedItems = [
+                ...updatedItemsOrder.slice(0, end),
+                updatedItemsOrder[start],
+                ...updatedItemsOrder.slice([end + 1], start),
+                updatedItemsOrder[end],
+                ...updatedItemsOrder.slice(start + 1),
+            ];
+        }
+
         setLocalItems(updatedItems);
         updateState({ sortedItems: updatedItems });
     };
 
-    const handleMinChange = (e) => {
-        setMin(e.target.value !== '' ? e.target.value : null);
-        setOffset(0);
-        setLocalItems([]);
-        setHasMore(true);
-        setIsNeedMore(true);
-    };
-
-    const handleMaxChange = (e) => {
-        setMax(e.target.value !== '' ? e.target.value : null);
+    const handleSearchChange = (e) => {
+        setSearch(e.target.value);
         setOffset(0);
         setLocalItems([]);
         setHasMore(true);
@@ -159,20 +151,11 @@ const ItemTable = () => {
         <Paper sx={{ width: '100%', overflow: 'hidden' }}>
             <div style={{ display: 'flex' }}>
                 <TextField
-                    label='Min'
-                    type='number'
+                    placeholder='Поиск'
                     variant='outlined'
-                    value={min}
-                    onChange={handleMinChange}
-                    sx={{ m: 2, width: '45%' }}
-                />
-                <TextField
-                    label='Max'
-                    type='number'
-                    variant='outlined'
-                    value={max}
-                    onChange={handleMaxChange}
-                    sx={{ m: 2, width: '45%' }}
+                    value={search}
+                    onChange={handleSearchChange}
+                    sx={{ m: 2, width: '95%' }}
                 />
             </div>
 
